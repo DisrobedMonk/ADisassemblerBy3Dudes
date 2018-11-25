@@ -7,8 +7,6 @@
 START           EQU     $1000
 CR              EQU     $0D         * ASCII code for Carriage Return
 LF              EQU     $0A         * ASCII code for Line Feed
-STRT_ADDR       EQU     $6000       * Hard coded start address for now
-END_ADDR        EQU     $6500       * Hard coded end address for now
 STACK           EQU     $10000      * Defined location for the stack
 LINE_CNT        EQU     $F          * Number of lines to print before pausing
 EXIT            EQU     $2700
@@ -18,7 +16,7 @@ EXIT            EQU     $2700
 *   D1:  
 *   D2:  
 *   D3:  
-*   D4:  
+*   D4: 
 *   !D5: OP_CHECK to I/O RTS holder
 *   !D6: Current OP code read from latest Current Address position
 *   !D7: The current line being printed (I/O line counter)
@@ -28,13 +26,19 @@ EXIT            EQU     $2700
 *   A2:  
 *   A3:  
 *   A4:  
-*   !A5: Current Address;   DO NOT ALTER (Initialized via start up requests)
+*   !A5: Current Address;   DO NOT ALTER (Initialized via start up requests
+*           - except for when in EA to get more information
 *   !A6: End Address;       DO NOT ALTER (Initialized via start up requests)
 *   !A7: STACK POINTER;     DO NOT ALTER
+*           - except in adding or taking from stack
 
 
 
-        ORG     $0
+
+
+*            .... This didn't work right ...  Follow its instructions but do it as the next !!!!/!!!! block prescribes
+*
+*        ORG     $0
 * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! *
 * 
 *       Instructions for using this .X68 code to test disassembler methods
@@ -46,9 +50,10 @@ EXIT            EQU     $2700
 *
 * Uncomment the hard code start/end address section below
 *
-* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! *
-        END     $0
+    
 
+* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! *
+*        END     $0
 
 
 
@@ -58,8 +63,10 @@ EXIT            EQU     $2700
 *       Hard coded start and end address
 *           Uncomment to test against entered OP code from above test section
 *
-*        LEA     0,A5
+*        LEA     #0,A5
 *        LEA     <ending address>,A6        * Make sure to include the extra address bytes if necessary for your test
+*        MOVE.L  <put the #$hex of your OP/EA you are testing here>,$0
+*        MOVE.L  <if needing more information, such as the EA data, put it here>,$<make sure this is the sequential position after what was moved above>
 *        BRA     BEGIN
 *
 * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! *
@@ -79,10 +86,10 @@ STRT_ADDR_RQST
         MOVE.L  #14,D0
         TRAP    #15
         
-        MOVE.L  #0,D1           * Clear any previously used Dr from looped requests
-        MOVE.L  #0,D2
-        MOVE.L  #0,D3
-        MOVE.L  #0,D4
+        CLR.L   D1           * Clear any previously used Dr from looped requests
+        CLR.L   D2
+        CLR.L   D3
+        CLR.L   D4
         
         MOVE.L  #2,D0           * Take in their start address
         MOVE.L  #0,A1           * Cleared A1 to not print over start address request in memory
@@ -120,7 +127,7 @@ ITS_A_NUM_STRT
         
         BRA     CNVRT_STRT      * Loop back to convert next char
         
-ItS_A_CHR_STRT
+ITS_A_CHR_STRT
         CMP.B   #$46,D3         * Check if char is 'F' or less in ASCII
         BGT     STRT_ADDR_RQST  * Not in bounds of valid data, request again
         
@@ -149,10 +156,10 @@ END_ADDR_RQST
         MOVE.L  #14,D0
         TRAP    #15
         
-        MOVE.L  #0,D1           * Clear any previously used Dr from looped requests
-        MOVE.L  #0,D2
-        MOVE.L  #0,D3
-        MOVE.L  #0,D4
+        CLR.L   D1           * Clear any previously used Dr from looped requests
+        CLR.L   D2
+        CLR.L   D3
+        CLR.L   D4
         
         MOVE.L  #2,D0           * Take in their end address
         MOVE.L  #0,A1           * Cleared A1 to not print over start address request in memory
@@ -191,7 +198,7 @@ ITS_A_NUM_END
         
         BRA     CNVRT_END       * Loop back to convert next char
         
-ItS_A_CHR_END
+ITS_A_CHR_END
         CMP.B   #$46,D3         * Check if char is 'F' or less in ASCII
         BGT     END_ADDR_RQST   * Not in bounds of valid data, request again
         
@@ -207,14 +214,14 @@ ItS_A_CHR_END
 SAVE_END
         MOVE.L  D4,A6           * Save the given/converted address in End Address (A6)
         
-        MOVE.L #0,D0            * Clear unnecessary data from Dr list
-        MOVE.L #0,D1
-        MOVE.L #0,D2
-        MOVE.L #0,D3
-        MOVE.L #0,D4
-        MOVE.L #0,D5
-        MOVE.L #0,D6
-        MOVE.L #0,D7
+        CLR.L   D0            * Clear unnecessary data from Dr list
+        CLR.L   D1
+        CLR.L   D2
+        CLR.L   D3
+        CLR.L   D4
+        CLR.L   D5
+        CLR.L   D6
+        CLR.L   D7
         
         
 *-------Moving on to decoding; start with instructions-------        
@@ -230,9 +237,9 @@ WAIT
         MOVE.L  #5,D0           * Pause for 'enter' by user to move forward
         TRAP    #15             *   A char is actually taken in for D1
         
-        MOVE.L  #0,D1           * Remove possible garbage intake from 'enter'
-        MOVE.L  #0,D7           * Zero the line counter
-        MOVE.L  #0,D0           * All Dr zeroed for a clean run
+        CLR.L   D1           * Remove possible garbage intake from 'enter'
+        CLR.L   D7           * Zero the line counter
+        CLR.L   D0           * All Dr zeroed for a clean run
 
 *---Check if done or perform next line's disassembly---------
 SEE_IF_DONE
@@ -247,7 +254,7 @@ SEE_IF_DONE
         JSR     OP_CHECK        * Jump to the OP_CHECK code
                                 * Sending:      A0-A4:  Empty
                                 *               A5:     The Current Address (just after Current OPcode)
-                                *                           Alter this only if more information deemed necessary via OPcode
+                                *                           Alter this only if more information deemed necessary via OPcode/EAcode
                                 *               !A6:    The End Address (DO NOT TOUCH)
                                 *               A7:     The current stack position
                                 *                           Alter this in order to maintain RTS position and to prepare print statement for OPcode's line
@@ -272,12 +279,12 @@ SEE_IF_DONE
         
         LEA     STACK,SP
         
-        MOVE.L  #0,D1           * Clear the unnecessasry registers for further use
-        MOVE.L  #0,D2
-        MOVE.L  #0,D3
-        MOVE.L  #0,D4
-        MOVE.L  #0,D5
-        MOVE.L  #0,D6
+        CLR.L   D1           * Clear the unnecessasry registers for further use
+        CLR.L   D2
+        CLR.L   D3
+        CLR.L   D4
+        CLR.L   D5
+        CLR.L   D6
         MOVE.L  #0,A0
         MOVE.L  #0,A1
         MOVE.L  #0,A2
@@ -300,7 +307,7 @@ SEE_IF_DONE
 *        BEQ     SEE_IF_DONE     *   Move onto next OPcode disassembly if so
 *        
 *        MOVE.B  (SP)+,D1        * Grab next char to print and 
-*        MOVE.B  #6,D0do so
+*        MOVE.B  #6,D0              do so
 *        TRAP    #15
 *        
 *        BRA     STACK_PRINT     * Continue to print the latest decoded OPcode
