@@ -36,44 +36,9 @@ EXIT            EQU     $2700
 
 
 
-*            .... This didn't work right ...  Follow its instructions but do it as the next !!!!/!!!! block prescribes
-*
-*        ORG     $0
-* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! *
-* 
-*       Instructions for using this .X68 code to test disassembler methods
-*
-* Enter the OP code in its entirety that you're looking to decode here
-*   (between teh ORG $0 and END $0
-* 
-* Comment out line from STRT_ADDR_RQST until BEGIN
-*
-* Uncomment the hard code start/end address section below
-*
-    
-
-* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! *
-*        END     $0
-
-
 
         ORG    START
-* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! *
-*
-*       Hard coded start and end address
-*           Uncomment to test against entered OP code from above test section
-*
-*        LEA     #0,A5
-*        LEA     <ending address>,A6        * Make sure to include the extra address bytes if necessary for your test
-*        MOVE.L  <put the #$hex of your OP/EA you are testing here>,$0
-*        MOVE.L  <if needing more information, such as the EA data, put it here>,$<make sure this is the sequential position after what was moved above>
-*        BRA     BEGIN
-*
-* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! *
-
-
-
-
+        
 
 *-----------------I/O code----------------
 
@@ -343,7 +308,7 @@ OP_CHECK
 
 
 * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! *
-_YOUR_EA_CODE_TESTING_FROM_THE_OP_CHECK_ABOVE_
+* Placeholder position for where the EA code will go
     
     * SELF EXPLANATORY ADDITIONAL TESTING AREA
     * 
@@ -386,3 +351,4 @@ INSTRCTNS   DC.B    'We are ready to begin reading the code between the given st
 
 
     END    START        ; last line of source
+
