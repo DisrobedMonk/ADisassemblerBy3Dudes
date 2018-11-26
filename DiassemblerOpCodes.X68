@@ -42,6 +42,10 @@ NOP_FOUND
            BRA     END_OP_SUB
 
 BCC_FOUND
+           MOVE.B  D6,D0            ;Move Lower order byte for branch offset into D0
+           MOVE.L  A5,A0
+           ADDA.L  D0,A0            ;A0 stores the offset address
+           JSR     OFFSET_ADDR      ;Offset for address to branch back to is in the lower order byte
                                     ;For a branching instruction, two parts, determine address to branch back too
                                     ;and determine what kind of branching 
                                     ;TODO is calculation of the offset
@@ -127,6 +131,10 @@ END_OP_SUB
            RTS    
         
            END     START
+           
+           
+OFFSET_ADDR
+
 
 *~Font name~Courier New~
 *~Font size~10~
