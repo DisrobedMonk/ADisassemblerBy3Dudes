@@ -4,7 +4,9 @@
 * Date       :11/25/2018
 * Description:
 *-----------------------------------------------------------
-            ORG    $1500
+END_LINE   EQU    $0A00  
+ 
+START      ORG    $1500
 *-------------Op Code Check Subroutine-------------
 OP_CHECK
            MOVE.L (SP)+,D5
@@ -21,17 +23,23 @@ OP_CHECK
 
 
 RTS_FOUND  
-           MOVE.W  #$0A00,-(SP)
+           MOVE.W  #END_LINE,-(SP)
            MOVE.W  #$530D,-(SP)
            MOVE.W  #$5452,-(SP)
 
 NOP_FOUND
-           MOVE.W  #$0A00,-(SP)
+           MOVE.W  #END_LINE,-(SP)
            MOVE.W  #$500D,-(SP)
            MOVE.W  #$4E4F,-(SP)
            BRA     END_OP_SUB
     
-
+DATA       
+           MOVE.W  #END_LINE,-(SP)          
+           MOVE.B  #$0D,-(SP)               ;CR
+           MOVE.L  #$5758595A,-(SP)         ;WXYZ
+           MOVE.W  #$0924,-(SP)             ;\t$
+           MOVE.L  #$44415441,-(SP)         ;DATA
+           BRA     END_OP_SUB
 
 
 
@@ -39,7 +47,7 @@ END_OP_SUB
            MOVE.L D5,-(SP)
            RTS    
         
-
+           END     START
 
 *~Font name~Courier New~
 *~Font size~10~
