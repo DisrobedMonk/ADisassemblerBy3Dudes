@@ -179,6 +179,14 @@ ITS_A_CHR_END
 SAVE_END
         MOVE.L  D4,A6           * Save the given/converted address in End Address (A6)
 
+        CLR.L   D0              * Clear unnecessary data from Dr list
+        CLR.L   D1
+        CLR.L   D2
+        CLR.L   D3
+        CLR.L   D4
+        CLR.L   D5
+        CLR.L   D6
+        CLR.L   D7
         
         
 *-------Moving on to decoding; start with instructions-------        
