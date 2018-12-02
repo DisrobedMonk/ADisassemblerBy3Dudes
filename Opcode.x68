@@ -371,6 +371,7 @@ OP_CHECK
            AND.W   D6,D0
            CMP.W   (A4)+,D0
            BEQ     ADDAW_FOUND             * ADDA.W Found           
+           
            MOVE.W  (A4),D0
            AND.W   D6,D0
            CMP.W   (A4),D0
