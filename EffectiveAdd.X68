@@ -12,10 +12,10 @@ COMMA           EQU     $2C
                 ORG     $1000
 START:   
 
-LEA_ADDRESS     BCLR   D2,$11112222
+LEA_ADDRESS     LEA    $11112222,A2
                 LEA    LEA_ADDRESS,A5
                 MOVE.W (A5)+,D6
-                JSR    BCLR_EA_FOUND             
+                JSR    LEA_EA_FOUND            
                 
                 MOVE.L SP,A1
                 MOVE.L #14,D0
@@ -109,18 +109,19 @@ BCLR_ADDL
 
 LEA_EA_FOUND    
                 MOVE.L  (SP)+,D5        ;Save the return address
+                MOVE.W  #END_LINE,-(SP)
+                MOVE.W  #REST_OF,-(SP)
                 CLR.L   D0              ;Clear D0 of any junk for masking bits
                 MOVE.L  #$00000E00,D0   ;Mask to get the destination Address register
                 AND.L   D6,D0           ;And to get the address register Number
                 LSR.L   #8,D0           ;Shift three bits to the end to get our address number
                 LSR.L   #1,D0
-                JSR     GET_ASCII_CHAR 
-                MOVE.W  #END_LINE,-(SP) ;Begin the address hex string
-                MOVE.B  D1,D0
-                LSL.L   #8,D0           ;The address number shifted into high order byte of the word
-                MOVE.B  #$0D,D0         ;Add carriage return for end of line
-                MOVE.W  D0,-(SP)        
-                MOVE.W  #$2C41,-(SP)    ;,A of destination address register
+                JSR     AR_DIRECT
+                CLR.L   D1
+                MOVE.B  #COMMA,D1
+                LSL.L   #8,D1
+                MOVE.B  #$20,D1
+                MOVE.W  D1,-(SP)        ;', ' for output
                 MOVE.L  #$00000038,D0   ;Move masking for EA mode
                 AND.L   D6,D0           
                 LSR.L   #3,D0           ;Shift bits 3 to left to get mode number
@@ -132,11 +133,7 @@ LEA_EA_FOUND
 LEA_ADDR_IND                            ;If the effective addressing mode is Address Register Indirect
                 MOVE.L #$00000007,D0    ;Mask for the last 3 bits
                 AND.L   D6,D0
-                JSR     GET_ASCII_CHAR  ;Get the ascii value of the hex digit for our address number
-                LSL.L   #8,D1           ;Shift over the ascii number
-                MOVE.B  #$29,D1
-                MOVE.W  D1,-(SP)
-                MOVE.W  #$2841,-(SP)    ;After this our addressing should be (An),An where n is the register number
+                JSR     AR_INDIRECT
                 MOVE.L  D5,-(SP)        ;Return address that goes back to opcheck onto the stack
                 RTS                     ;Return to Opcheck
                 
@@ -148,51 +145,20 @@ LEA_ADD                                 ;If the evective addressing mode is a st
                 BRA     LEA_ADDL        ;Only two options here for address size
                     
 LEA_ADDW
-                CLR     D0
-                CLR     D1
-                CLR     D2
-                MOVE.W  (A5)+,D3         ;Move and increment current address (at this point current address should be on the next instruction to be disassembled)
-                MOVE.B  #0,D2            ;We want to find 4 digits for the word address
-LEA_DW_LOOP     MOVE.L  #$0000F000,D0    ;Mask for last 4 bits (DW = DigitWord)
-                AND.L   D3,D0
-                LSR.L   #8,D0
-                LSR.L   #4,D0
-                LSL.L   #4,D3            ;Shift to next digit
-                JSR     GET_ASCII_CHAR   ;Ascii digit should be in D1
-                CMP.L   #3,D2            ;if we've done this 4 times (starting loop counter from 0)
-                BEQ     LEA_DW_DONE
-                LSL.L   #8,D1
-                ADD.L   #1,D2
-                BRA     LEA_DW_LOOP          
-LEA_DW_DONE
-                MOVE.L  D1,-(SP)        ;D1 should hold the ascii hex digits
-                MOVE.B  #$24,-(SP)
+                JSR     ADDW_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0       ;Move space into D0, then move $
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)        ;Move the final ' $' of the address string onto the stack
                 MOVE.L  D5,-(SP)
                 RTS
 
-LEA_ADDL                                           
-                MOVE.L  (A5)+,D2
-                MOVE.B  #0,D3
-                MOVE.B  #0,D4
-LEA_LW_LOOP     MOVE.L  #$0000F000,D0   ;This loop will have to be performed twice, due to only being able to store 4 ascii charcters (2 bytes each) at a time
-                AND.L   D2,D0
-                LSR.L   #8,D0
-                LSR.L   #4,D0
-                ROL.L   #4,D2           ;Grab the next hex digit
-                JSR     GET_ASCII_CHAR  
-                CMP.L   #3,D3           ;check to see if this was the last iteration
-                BEQ     LEA_LWI_DONE
-                LSL.L   #8,D1           ;Open up space for the next ascii value
-                ADD.L   #1,D3
-                BRA     LEA_LW_LOOP      
-LEA_LWI_DONE    MOVE.L  D1,-(SP)        
-                CLR.L   D1
-                CMP.L   #1,D4
-                BEQ     LEA_LWO_DONE    ;If the outer loop is not done, clear the inner loop sentinel value and D1 and move on
-                ADD.L   #1,D4
-                CLR.L   D3
-                BRA     LEA_LW_LOOP
-LEA_LWO_DONE    MOVE.B  #$24,-(SP)
+LEA_ADDL        
+                JSR     ADDL_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0       ;Move space into D0, then move $
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)        ;Move the final ' $' of the address string onto the stack                    
                 MOVE.L  D5,-(SP)
                 RTS      
                     
@@ -229,6 +195,22 @@ DR_DIRECT
              JSR        GET_ASCII_CHAR  
              MOVE.B     D1,D2           ;After return from GET_ASCII_CHAR ascii value of digit in D0 should be in D1
              MOVE.W     D2,-(SP)        ;Move 'Dn' onto stack for output
+             MOVE.L     D4,-(SP)
+             CLR.L      D1
+             RTS
+
+*-----------------AR_DIRECT----------------
+*Description: Given a register number in D0, generate the ascii representation of the Address register
+*for the EA. (EX: Given 101 in D0, push 'D5' onto the stack
+*Data Register D0: The value of D0 on entering the SUB is the n in An
+*-----------------AR_DIRECT----------------
+AR_DIRECT
+             MOVE.L     (SP)+,D4        ;Save the return address
+             MOVE.B     #$41,D2
+             LSL.L      #8,D2           ;Move 'A' into the upper byte of lower order word
+             JSR        GET_ASCII_CHAR  
+             MOVE.B     D1,D2           ;After return from GET_ASCII_CHAR ascii value of digit in D0 should be in D1
+             MOVE.W     D2,-(SP)        ;Move 'An' onto stack for output
              MOVE.L     D4,-(SP)
              CLR.L      D1
              RTS
