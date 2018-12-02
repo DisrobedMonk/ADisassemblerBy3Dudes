@@ -12,10 +12,10 @@ COMMA           EQU     $2C
                 ORG     $1000
 START:   
 
-LEA_ADDRESS     LEA    $11112222,A2
+LEA_ADDRESS     BCLR    D0,(A2)
                 LEA    LEA_ADDRESS,A5
                 MOVE.W (A5)+,D6
-                JSR    LEA_EA_FOUND            
+                JSR    BCLR_EA            
                 
                 MOVE.L SP,A1
                 MOVE.L #14,D0
@@ -26,8 +26,8 @@ LEA_ADDRESS     LEA    $11112222,A2
 *This section is composed of Instructions where one operand (source or destination
 *is has a static addressing mode SOURCE OR OPERAND != EA
 *-----------------STATIC OPERAND----------------
-BCLR_EA_FOUND                           ;If the BCLR instruction is found
-                MOVE.L  (SP)+,D5        ;Save Return Address
+BCLR_EA                           ;If the BCLR instruction is found
+                MOVE.L  (SP)+,A3        ;Save Return Address
                 CLR.L   D0
                 CLR.L   D1
                 CLR.L   D3
@@ -64,7 +64,7 @@ BCLR_ODD        MOVE.W  D0,-(SP)
                 LSR.L   #8,D0           ;Need to move over 9 bits for Register number
                 LSR.L   #1,D0
                 JSR     DR_DIRECT
-                MOVE.L  D5,-(SP)        ;Move return address back onto the stack
+                MOVE.L  A3,-(SP)        ;Move return address back onto the stack
                 RTS                     ;Return back to opcheck
                 
 
@@ -107,8 +107,8 @@ BCLR_ADDL
                 JSR     ADDL_OUT
                 BRA     BCLR_RET_FOR_SRC    
 
-LEA_EA_FOUND    
-                MOVE.L  (SP)+,D5        ;Save the return address
+LEA_EA    
+                MOVE.L  (SP)+,A3        ;Save the return address
                 MOVE.W  #END_LINE,-(SP)
                 MOVE.W  #REST_OF,-(SP)
                 CLR.L   D0              ;Clear D0 of any junk for masking bits
@@ -134,7 +134,7 @@ LEA_ADDR_IND                            ;If the effective addressing mode is Add
                 MOVE.L #$00000007,D0    ;Mask for the last 3 bits
                 AND.L   D6,D0
                 JSR     AR_INDIRECT
-                MOVE.L  D5,-(SP)        ;Return address that goes back to opcheck onto the stack
+                MOVE.L  A3,-(SP)        ;Return address that goes back to opcheck onto the stack
                 RTS                     ;Return to Opcheck
                 
 LEA_ADD                                 ;If the evective addressing mode is a straight address
@@ -150,7 +150,7 @@ LEA_ADDW
                 MOVE.W  #$2000,D0       ;Move space into D0, then move $
                 MOVE.B  D1,D0
                 MOVE.W  D0,-(SP)        ;Move the final ' $' of the address string onto the stack
-                MOVE.L  D5,-(SP)
+                MOVE.L  A3,-(SP)
                 RTS
 
 LEA_ADDL        
@@ -159,9 +159,11 @@ LEA_ADDL
                 MOVE.W  #$2000,D0       ;Move space into D0, then move $
                 MOVE.B  D1,D0
                 MOVE.W  D0,-(SP)        ;Move the final ' $' of the address string onto the stack                    
-                MOVE.L  D5,-(SP)
+                MOVE.L  A3,-(SP)
                 RTS      
+                 
                     
+
   
 DONE    SIMHALT             
 
