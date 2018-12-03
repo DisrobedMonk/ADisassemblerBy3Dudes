@@ -436,7 +436,6 @@ OP_CHECK
 *           to perform specific EA operations and add the ASCII OP word to SP
 *-----------------------------------------------------
 
-
 *-------------Checking 0000 Mask Table---------------*
            LEA     maskTable0000, A4     
            MOVE.W  (A4),D0
@@ -707,7 +706,7 @@ OP_CHECK
            *  NEED SHIFT CHECKS HERE                                                                                     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
            
            
-           BRA     DATA_FOUND               * Did not discover the OP word we were given* must be data that needs printing
+           BRA     DATA_FOUND               * Did not discover the OP word we were given; must be data that needs printing
 
 
 *-----Specific OP code found section (perform specific EA and add the ASCII to SP)-------
@@ -1071,6 +1070,8 @@ ADDAL_FOUND
            BRA      END_OP_SUB
            
            
+*      NEED <shifts>_FOUND section                                                                          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 DATA_FOUND       
            MOVE.L  #END_LINE,-(SP)          
            SUB.L   #$2,A5
@@ -1154,8 +1155,3 @@ HEX_to_ASCII    DC.B    '0','1','2','3','4','5','6','7','8','9','A','B','C','D',
 
     END    START        * last line of source
 
-
-*~Font name~Courier New~
-*~Font size~12~
-*~Tab type~1~
-*~Tab size~4~
