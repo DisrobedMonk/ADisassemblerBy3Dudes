@@ -726,6 +726,7 @@ NOP_FOUND
 BCC_FOUND
            MOVE.B  D6,D0            *Move Lower order byte for branch offset into D0
            MOVE.L  A5,A0
+           SUB.L   #2,A0
            ADDA.L  D0,A0            *A0 stores the offset address
            JSR     OFFSET_ADDR      *Offset for address to branch back to is in the lower order byte
                                     *For a branching instruction, two parts, determine address to branch back too
