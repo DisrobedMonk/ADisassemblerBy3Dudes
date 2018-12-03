@@ -90,9 +90,36 @@ ADDL_RegEA_mask DC.W    %1101000110000000
 ADDAW_mask      DC.W    %1101000011000000
 ADDAL_mask      DC.W    %1101000111000000
 *---------------------------------------------------------------------------------------*
-*--------------1110 Mask Table: LSR Reg, LSR Mem, LSL Reg, LSL Mem----------------------*
-*--------------1110 Mask Table: ASR Reg, ASR Mem, ASL Reg, ASR Mem----------------------*
-*--------------1110 Mask Table: ROL Reg, ROL Mem, ROR Reg, ROR Mem----------------------*
+*--------------1110 Mask Table: ASR Reg, ASR Mem, ASL Reg, ASR Mem, (.B,W, .L)----------*
+*--------------1110 Mask Table: LSR Reg, LSR Mem, LSL Reg, LSL Mem  (.B,W, .L)----------*
+*--------------1110 Mask Table: ROR Reg, ROR Mem, ROL Reg, ROL Mem  (.B,W, .L)----------*
+maskTable1110
+ASRB_Reg_mask   DC.W    %1110000000000000
+ASRW_Reg_mask   DC.W    %1110000001000000
+ASRL_Reg_mask   DC.W    %1110000010000000
+ASR_Mem_mask    DC.W    %1110000011000000
+ASLB_Reg_mask   DC.W    %1110000100000000
+ASLW_Reg_mask   DC.W    %1110000101000000
+ASLL_Reg_mask   DC.W    %1110000110000000
+ASL_Mem_mask    DC.W    %1110000111000000
+LSRB_Reg_mask   DC.W    %1110000000001000
+LSRW_Reg_mask   DC.W    %1110000001001000
+LSRL_Reg_mask   DC.W    %1110000010001000
+LSR_Mem_mask    DC.W    %1110001011000000
+LSLB_Reg_mask   DC.W    %1110000100001000
+LSLW_Reg_mask   DC.W    %1110000101001000
+LSLL_Reg_mask   DC.W    %1110000110001000
+LSL_Mem_mask    DC.W    %1110001111000000
+RORB_Reg_mask   DC.W    %1110000000011000
+RORW_Reg_mask   DC.W    %1110000001011000
+RORL_Reg_mask   DC.W    %1110000010011000
+ROR_Mem_mask    DC.W    %1110011011000000
+ROLB_Reg_mask   DC.W    %1110000100011000
+ROLW_Reg_mask   DC.W    %1110000101011000
+ROLL_Reg_mask   DC.W    %1110000110011000
+ROL_Mem_mask    DC.W    %1110011111000000
+
+
 
 
 
@@ -113,7 +140,7 @@ OP_CHECK
            BEQ     BCC_FOUND
                 
 *-------------Checking 0000 Mask Table---------------*
-           LEA     maskTable0000, A4     
+           LEA     maskTable0000, A4     * Load first mask table into A4, begin incrementing through table
            MOVE.W  (A4),D0
            AND.W   D6,D0
            CMP.W   (A4)+, D0
@@ -370,21 +397,131 @@ OP_CHECK
            MOVE.W  (A4),D0
            AND.W   D6,D0
            CMP.W   (A4)+,D0
-           BEQ     ADDAW_FOUND             * ADDA.W Found           
-           
+           BEQ     ADDAW_FOUND             * ADDA.W Found  
+         
            MOVE.W  (A4),D0
            AND.W   D6,D0
            CMP.W   (A4),D0
            BEQ     ADDAL_FOUND             * ADDA.L Found    
             
 *-------------Checking 1110 Mask Table----------------*
+           LEA     maskTable1110, A4     
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     ASRB_Reg_FOUND          * ASR.B Register Found
            
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     ASRW_Reg_FOUND          * ASR.W Register Found
            
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     ASRL_Reg_FOUND          * ASR.L Register Found
            
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     ASR_Mem_FOUND           * ASR Memory Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     ASLB_Reg_FOUND          * ASL.B Register Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     ASLW_Reg_FOUND          * ASL.W Register Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     ASLL_Reg_FOUND          * ASL.L Register Found
+           
+            MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     ASL_Mem_FOUND           * ASL Memory Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     LSRB_Reg_FOUND          * LSR.B Register Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     LSRW_Reg_FOUND          * LSR.W Register Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     LSRL_Reg_FOUND          * LSR.L Register Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     LSR_Mem_FOUND           * LSR Memory Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     LSLB_Reg_FOUND          * LSL.B Register Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     LSLW_Reg_FOUND          * LSL.W Register Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     LSLL_Reg_FOUND          * LSL.L Register Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     LSL_Mem_FOUND           * LSL Memory Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     RORB_Reg_FOUND          * ROR.B Register Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     RORW_Reg_FOUND          * ROR.W Register Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     RORL_Reg_FOUND          * ROR.L Register Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     ROR_Mem_FOUND           * ROR Memory Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     ROLB_Reg_FOUND          * ROL.B Register Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4)+, D0
+           BEQ     ROLW_Reg_FOUND          * ROL.W Register Found
+           
+           MOVE.W  (A4),D0
+           AND.W   D6,D0
+           CMP.W   (A4),D0
+           BEQ     ROL_Mem_FOUND           * ROL Memory Found
            
            BRA     DATA_FOUND
-
-
 
 RTS_FOUND  
            MOVE.W  #END_LINE,-(SP)
@@ -747,7 +884,103 @@ ADDAL_FOUND
            ;JSR TO EA LABLE HERE
            ;PRINT ADDA.L CODE HERE
            BRA      END_OP_SUB
-           
+
+ASRB_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ASR.B HERE
+           BRA      END_OP_SUB
+ASRW_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ASR.W HERE
+           BRA      END_OP_SUB
+ASRL_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ASR.L HERE
+           BRA      END_OP_SUB
+ASR_Mem_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ASR HERE
+           BRA      END_OP_SUB
+ASLB_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ASL.B HERE
+           BRA      END_OP_SUB
+ASLW_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ASL.W HERE
+           BRA      END_OP_SUB
+ASLL_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ASL.L HERE
+           BRA      END_OP_SUB
+ASL_Mem_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ASL HERE
+           BRA      END_OP_SUB
+LSRB_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT LSR.B HERE
+           BRA      END_OP_SUB
+LSRW_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT LSR.W HERE
+           BRA      END_OP_SUB
+LSRL_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT LSR.L HERE
+           BRA      END_OP_SUB
+LSR_Mem_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT LSR HERE
+           BRA      END_OP_SUB
+LSLB_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT LSL.B HERE
+           BRA      END_OP_SUB
+LSLW_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT LSL.W HERE
+           BRA      END_OP_SUB
+LSLL_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT LSL.L HERE
+           BRA      END_OP_SUB
+LSL_Mem_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT LSL HERE
+           BRA      END_OP_SUB
+RORB_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ROR.B HERE
+           BRA      END_OP_SUB
+RORW_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ROR.W HERE
+           BRA      END_OP_SUB
+RORL_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ROR.L HERE
+           BRA      END_OP_SUB
+ROR_Mem_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ROR HERE
+           BRA      END_OP_SUB
+ROLB_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ROL.B HERE
+           BRA      END_OP_SUB
+ROLW_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ROL.W HERE
+           BRA      END_OP_SUB
+ROLL_Reg_FOUND
+           *JSR TO EA LABLE HERE
+           *PRINT ROL.L HERE
+           BRA      END_OP_SUB
+ROL_Mem_FOUND           
+           *JSR TO EA LABLE HERE
+           *PRINT ROL HERE
+           BRA      END_OP_SUB
            
 DATA_FOUND       
            MOVE.W  #END_LINE,-(SP)          
@@ -755,9 +988,7 @@ DATA_FOUND
            MOVE.L  #$5758595A,-(SP)         ;WXYZ
            MOVE.W  #$0924,-(SP)             ;\t$
            MOVE.L  #$44415441,-(SP)         ;DATA
-           BRA     END_OP_SUB
-
-
+           BRA     END_OP_SUB           
 
 END_OP_SUB
            MOVE.L D5,-(SP)
