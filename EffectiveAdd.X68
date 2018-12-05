@@ -758,6 +758,122 @@ ADDA_IMML
                 RTS
                 
 MOVEA_EA        
+                MOVE.L  (SP)+,A3
+                MOVE.L  #END_LINE,-(SP)
+                MOVE.L  #$00000E00,D0       ;Mask for address register number bits
+                AND.L   D6,D0
+                MOVE.L  #9,D1
+                LSR.L   D1,D0
+                CLR.L   D1
+                JSR     AR_DIRECT       ;Only one kind of destination (Address register)
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  #$20,D0
+                MOVE.W  D0,-(SP)
+                CLR.L   D0
+                MOVE.L  #$00000038,D0   ;Move masking for EA mode
+                AND.L   D6,D0           
+                LSR.L   #3,D0           ;Shift bits 3 to left to get mode number
+                LEA     ADD_MODES,A1    ;Load addressing modes list for comparison
+                CMP.W   (A1)+,D0
+                BEQ     MOVEA_DR
+                CMP.W   (A1)+,D0
+                BEQ     MOVEA_AR
+                CMP.W   (A1)+,D0
+                BEQ     MOVEA_AR_IND
+                CMP.W   (A1)+,D0
+                BEQ     MOVEA_AR_IND_POST
+                CMP.W   (A1),D0
+                BEQ     MOVEA_AR_IND_PRE
+                BRA     MOVEA_ADD_IMM
+             
+MOVEA_DR
+                MOVE.L #$00000007,D0    ;Mask for the last 3 bits
+                AND.L   D6,D0
+                JSR     DR_DIRECT
+                MOVE.L  A3,-(SP)        ;Return address that goes back to opcheck onto the stack
+                RTS                     ;Return to Opcheck
+
+MOVEA_AR
+                MOVE.L #$00000007,D0    ;Mask for the last 3 bits
+                AND.L   D6,D0
+                JSR     AR_DIRECT
+                MOVE.L  A3,-(SP)        ;Return address that goes back to opcheck onto the stack
+                RTS                     ;Return to Opcheck
+  
+MOVEA_AR_IND
+                MOVE.L #$00000007,D0    ;Mask for the last 3 bits
+                AND.L   D6,D0
+                JSR     AR_INDIRECT
+                MOVE.L  A3,-(SP)        ;Return address that goes back to opcheck onto the stack
+                RTS                     ;Return to Opcheck
+
+MOVEA_AR_IND_POST
+                MOVE.L  #$00000007,D0        *Mask for last 3 bits which will give us the Address register number
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_POST
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  A3, -(SP)
+                RTS
+
+MOVEA_AR_IND_PRE
+                MOVE.L  #$00000007,D0        *Mask for last 3 bits which will give us the Address register number
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_PRE
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  A3, -(SP)
+                RTS
+
+MOVEA_ADD_IMM
+                MOVE.L  #$00000007,D0        *Mask for last 3 bits which will let us know if we have Absolute addressing or Immediate  
+                AND.L   D6,D0
+                LEA     AB_ADD_SIZES,A1
+                CMP.W   (A1)+,D0
+                BEQ     MOVEA_ADDW
+                CMP.W   (A1)+,D0
+                BEQ     MOVEA_ADDL
+                BRA     MOVEA_IMM
+MOVEA_ADDW
+                JSR     ADDW_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)            *Push ' $' onto the stack for output
+                MOVE.L  A3,-(SP)
+                RTS
+   
+MOVEA_ADDL
+                JSR     ADDL_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)            *Push ' $' onto the stack for output
+                MOVE.L  A3,-(SP)
+                RTS
+
+MOVEA_IMM
+                MOVE.L  #$30000000,D0       *Mask for opmode which will give the size needed for the immediate value
+                AND.L   D6,D0
+                LEA     MOVE_SIZES,A1
+                ADDA.L  #4,A1
+                CMP.L   (A1),D0
+                BEQ     MOVEA_IMMW
+                BRA     MOVEA_IMML
+MOVEA_IMMW
+                JSR     IMMW_OUT
+                MOVE.L  A3,-(SP)
+                RTS
+
+MOVEA_IMML
+                JSR     IMML_OUT
+                MOVE.L  A3,-(SP)
+                RTS
+
+                      
                 
                 
 DONE    SIMHALT             
@@ -766,6 +882,7 @@ DONE    SIMHALT
 HEX_to_ASCII    DC.B    '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
 ADD_MODES       DC.W    0,1,2,3,4
 AB_ADD_SIZES    DC.W    0,1
+MOVE_SIZES      DC.L    $10000000,$30000000,$20000000
 
 
        
@@ -1032,6 +1149,7 @@ TEST_SUB
        END    START              
               
               
+
 
 
 
