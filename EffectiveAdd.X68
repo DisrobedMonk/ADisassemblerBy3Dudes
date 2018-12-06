@@ -10,20 +10,16 @@ COMMA           EQU     $2C
                 ORG     $1000
 START:   
 
-TEST_INSTR      ADDA.L  #$5000,A0
-                LEA    TEST_INSTR,A5
-                MOVE.W (A5)+,D6
-                JSR    ADDA_EA          
+TEST_INSTR      LSL.W   (A0)
+                LEA     TEST_INSTR,A5
+                MOVE.W  (A5)+,D6
+                JSR     LSD_ASD_MEM_EA        
                 
                 MOVE.L SP,A1
                 MOVE.L #14,D0
                 TRAP   #15
                 BRA    DONE
                 
-*-----------------STATIC OPERAND----------------
-*This section is composed of Instructions where one operand (source or destination
-*is has a static addressing mode SOURCE OR OPERAND != EA
-*-----------------STATIC OPERAND----------------
 BCLR_EA                           ;If the BCLR instruction is found
                 MOVE.L  (SP)+,A3        ;Save Return Address
                 CLR.L   D0
@@ -718,7 +714,7 @@ ADDA_AR_IND_PRE
 ADDA_ADD_IMM
                 MOVE.L  #$00000007,D0        *Mask for last 3 bits which will let us know if we have Absolute addressing or Immediate  
                 AND.L   D6,D0
-                LEA     AB_ADD_SIZES,A1
+                LEA     AR_ADD_SIZES,A1
                 CMP.W   (A1)+,D0
                 BEQ     ADDA_ADDW
                 CMP.W   (A1)+,D0
@@ -831,7 +827,7 @@ MOVEA_AR_IND_PRE
 MOVEA_ADD_IMM
                 MOVE.L  #$00000007,D0        *Mask for last 3 bits which will let us know if we have Absolute addressing or Immediate  
                 AND.L   D6,D0
-                LEA     AB_ADD_SIZES,A1
+                LEA     AR_ADD_SIZES,A1
                 CMP.W   (A1)+,D0
                 BEQ     MOVEA_ADDW
                 CMP.W   (A1)+,D0
@@ -856,11 +852,11 @@ MOVEA_ADDL
                 RTS
 
 MOVEA_IMM
-                MOVE.L  #$30000000,D0       *Mask for opmode which will give the size needed for the immediate value
+                MOVE.L  #$00003000,D0       *Mask for opmode which will give the size needed for the immediate value
                 AND.L   D6,D0
                 LEA     MOVE_SIZES,A1
-                ADDA.L  #4,A1
-                CMP.L   (A1),D0
+                ADDA.W  #2,A1
+                CMP.W   (A1),D0
                 BEQ     MOVEA_IMMW
                 BRA     MOVEA_IMML
 MOVEA_IMMW
@@ -873,16 +869,721 @@ MOVEA_IMML
                 MOVE.L  A3,-(SP)
                 RTS
 
-                      
+SUBQ_EA         
+                MOVE.L  (SP)+,A3
+                MOVE.L  #END_LINE,-(SP)
+                MOVE.L  #$00000038,D0
+                AND.L   D6,D0
+                LSR.L   #3,D0
+                LEA     ADD_MODES,A1
+                CMP.W   (A1)+,D0
+                BEQ     SUBQ_DR
+                CMP.W   (A1)+,D0
+                BEQ     SUBQ_AR
+                CMP.W   (A1)+,D0
+                BEQ     SUBQ_AR_IND
+                CMP.W   (A1)+,D0
+                BEQ     SUBQ_AR_IND_POST
+                CMP.W   (A1),D0
+                BEQ     SUBQ_AR_IND_PRE
+                BRA     SUBQ_ADD
+                
+SUBQ_DR
+                MOVE.L  #$00000007,D0   *Mask for 3 bits to get register number
+                AND.L   D6,D0
+                JSR     DR_DIRECT
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  #$20,D0
+                MOVE.W  D0,-(SP)
+                BRA     SUBQ_RET_FOR_SRC
+               
+SUBQ_AR
+                MOVE.L  #$00000007,D0   *Mask 3 bits to get register number
+                AND.L   D6,D0
+                JSR     AR_DIRECT
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  #$20,D0
+                MOVE.W  D0,-(SP)
+                BRA     SUBQ_RET_FOR_SRC    
+SUBQ_AR_IND
+                MOVE.L  #$00000007,D0   *Mask 3 bits to get register number
+                AND.L   D6,D0
+                JSR     AR_INDIRECT
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  #$20,D0
+                MOVE.W  D0,-(SP)
+                BRA     SUBQ_RET_FOR_SRC    
+SUBQ_AR_IND_POST
+                MOVE.L  #$00000007,D0   *Mask 3 bits for register number
+                CLR.L   D1
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_POST
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                BRA     SUBQ_RET_FOR_SRC 
+ 
+SUBQ_AR_IND_PRE
+                MOVE.L  #$00000007,D0   *Mask 3 bits for register number
+                CLR.L   D1
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_PRE
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                BRA     SUBQ_RET_FOR_SRC 
+
+SUBQ_ADD
+                MOVE.L  #$00000007,D0        *Mask for last 3 bits which will let us know if we have Absolute addressing or Immediate  
+                AND.L   D6,D0
+                LEA     AR_ADD_SIZES,A1
+                CMP.W   (A1),D0
+                BEQ     SUBQ_ADDW
+                BRA     SUBQ_ADDL
+SUBQ_ADDW
+                JSR     ADDW_OUT
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  A5,A0           *Store the address of the next instruction in A0 to be returned to later
+                BRA     SUBQ_RET_FOR_SRC
+                
+SUBQ_ADDL
+                JSR     ADDL_OUT
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  A5,A0           *Store the address of the next instruction in A0 to be returned to later
+                BRA     SUBQ_RET_FOR_SRC
+                
+SUBQ_RET_FOR_SRC
+                MOVE.L  #0,D2
+                MOVE.L  #9,D1
+                MOVE.L  #$00000E00,D0
+                AND.L   D6,D0
+                LSR.L   D1,D0
+                CLR.L   D1
+                LEA     SUBQ_IMM_VALUES,A1    
+                CMP.W   (A1)+,D0            
+                BEQ     SUBQ_VALUE_8        *If the value is equal to 0, it's actually equal to 8. Dope
+SUBQ_LOOP       CMP.W   #8,D2             *Loop finds the proper immediate value between 1 and 7
+                BEQ     SUBQ_BAD            
+                CMP.W   (A1)+,D0    
+                BEQ     SUBQ_LOOP_DONE
+                ADD.L   #1,D2
+                BRA     SUBQ_LOOP
+SUBQ_VALUE_8
+                MOVE.L  #8,D0
+                JSR     GET_ASCII_CHAR
+                MOVE.W  #$2400,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.W  #$2023,-(SP)
+                BRA     SUBQ_IMM_DONE
+SUBQ_LOOP_DONE
+                JSR     GET_ASCII_CHAR
+                MOVE.W  #$2400,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.W  #$2023,-(SP)
+                BRA     SUBQ_IMM_DONE
+                
+SUBQ_BAD                                    *JUST in case really. Prints out BADV
+                MOVE.W #$4456,-(SP)
+                MOVE.W #$4241,-(SP)
+                BRA     SUBQ_IMM_DONE              
+SUBQ_IMM_DONE
+                MOVE.L  A3,-(SP)
+                RTS
+
+ADD_SUB_EAREG_EA                            *Add and Sub have the same process for EA determination. ITS FREE CODE [https://www.youtube.com/watch?v=cd4-UnU8lWY]
+
+                MOVE.L  (SP)+,A3
+                MOVE.L  #END_LINE,-(SP)
+                MOVE.L  #$00000D00,D0      *Mask for Dn in destination
+                AND.L   D6,D0
+                MOVE.L  #9,D1              *Need to shift 9 bits for the Register number
+                LSR.L   D1,D0
+                CLR.L   D1
+                JSR     DR_DIRECT
+                MOVE.W  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  #$20,D0
+                MOVE.W  D0,-(SP)            *Push comma to stack to split operands
+                MOVE.L  #$00000038,D0       *Move mask for mode bits int D0
+                AND.L   D6,D0
+                LSR.L   #3,D0
+                LEA     ADD_MODES,A1    ;Load addressing modes list for comparison
+                CMP.W   (A1)+,D0
+                BEQ     ADD_ER_DR
+                CMP.W   (A1)+,D0
+                BEQ     ADD_ER_AR
+                CMP.W   (A1)+,D0
+                BEQ     ADD_ER_AR_IND
+                CMP.W   (A1)+,D0
+                BEQ     ADD_ER_AR_IND_POST
+                CMP.W   (A1),D0
+                BEQ     ADD_ER_AR_IND_PRE
+                BRA     ADD_ER_ADD_IMM
+
+ADD_ER_DR
+                MOVE.L #$00000007,D0    ;Mask for the last 3 bits
+                AND.L   D6,D0
+                JSR     DR_DIRECT
+                MOVE.L  A3,-(SP)        ;Return address that goes back to opcheck onto the stack
+                RTS                     ;Return to Opcheck
+
+ADD_ER_AR
+                MOVE.L #$00000007,D0    ;Mask for the last 3 bits
+                AND.L   D6,D0
+                JSR     AR_DIRECT
+                MOVE.L  A3,-(SP)        ;Return address that goes back to opcheck onto the stack
+                RTS                     ;Return to Opcheck
+
+ADD_ER_AR_IND
+                MOVE.L #$00000007,D0    ;Mask for the last 3 bits
+                AND.L   D6,D0
+                JSR     AR_INDIRECT
+                MOVE.L  A3,-(SP)        ;Return address that goes back to opcheck onto the stack
+                RTS                     ;Return to Opcheck
+
+ADD_ER_AR_IND_POST
+                MOVE.L  #$00000007,D0        *Mask for last 3 bits which will give us the Address register number
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_POST
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  A3, -(SP)
+                RTS
+
+ADD_ER_AR_IND_PRE
+                MOVE.L  #$00000007,D0        *Mask for last 3 bits which will give us the Address register number
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_PRE
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  A3, -(SP)
+                RTS
+ 
+ADD_ER_ADD_IMM
+                MOVE.L  #$00000007,D0        *Mask for last 3 bits which will let us know if we have Absolute addressing or Immediate  
+                AND.L   D6,D0
+                LEA     AR_ADD_SIZES,A1
+                CMP.W   (A1)+,D0
+                BEQ     ADD_ER_ADDW
+                CMP.W   (A1)+,D0
+                BEQ     ADD_ER_ADDL
+                BRA     ADD_ER_IMM
+ADD_ER_ADDW
+                JSR     ADDW_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)            *Push ' $' onto the stack for output
+                MOVE.L  A3,-(SP)
+                RTS
+   
+ADD_ER_ADDL
+                JSR     ADDL_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)            *Push ' $' onto the stack for output
+                MOVE.L  A3,-(SP)
+                RTS
+
+ADD_ER_IMM
+                MOVE.L  #$00003000,D0       *Mask for opmode which will give the size needed for the immediate value
+                AND.L   D6,D0
+                LEA     ADD_SIZES,A1
+                CMP.W   (A1)+,D0
+                BEQ     ADD_ER_IMMB
+                CMP.W   (A1),D0
+                BEQ     ADD_ER_IMMW
+                BRA     ADD_ER_IMML
+ADD_ER_IMMB
+                JSR     IMMB_OUT
+                MOVE.L  A3,-(SP)
+                RTS
+                
+ADD_ER_IMMW
+                JSR     IMMW_OUT
+                MOVE.L  A3,-(SP)
+                RTS
+
+ADD_ER_IMML
+                JSR     IMML_OUT
+                MOVE.L  A3,-(SP)
+                RTS
+                
+ADD_SUB_OR_REGEA_EA                         *ADD, SUB, OR have for REG->EA have same process for determining EA. ITS FREE REAL ESTATE 
+                MOVE.L  (SP)+,A3
+                MOVE.L  #END_LINE,-(SP)
+EOR_ENTRY       MOVE.L  #$00000038,D0       *Mask for mode bits of destination. FOR EOR: If the EA mode is not DR direct, EOR has same process for determining EA
+                AND.L   D6,D0
+                LSR.L   #3,D0
+                MOVE.B  #4,D1
+                LEA     ADD_MODES,A1
+                ADDA.L  D1,A1
+                CLR.L   D1
+                CMP.W   (A1)+,D0
+                BEQ     ADD_RE_AR_IND
+                CMP.W   (A1)+,D0
+                BEQ     ADD_RE_AR_IND_POST
+                CMP.W   (A1),D0
+                BEQ     ADD_RE_AR_IND_PRE
+                BRA     ADD_RE_ADD
+ADD_RE_AR_IND
+                MOVE.L  #$00000007,D0       *Mask for register number
+                AND.L   D6,D0
+                JSR     AR_INDIRECT
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  #$20,D0
+                MOVE.W  D0,-(SP)
+                BRA     ADD_REGEA_SRC
+
+ADD_RE_AR_IND_POST
+                MOVE.L  #$00000007,D0       *Mask for register number
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_POST
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                BRA     ADD_REGEA_SRC
+                
+ADD_RE_AR_IND_PRE
+                MOVE.L  #$00000007,D0       *Mask for register number
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_PRE
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                BRA     ADD_REGEA_SRC
+
+ADD_RE_ADD
+                MOVE.L  #$00000007,D0       *Mask for register number
+                AND.L   D6,D0               
+                LEA     AR_ADD_SIZES,A1     *Need to determine if we are using a Word/Long address or Immediate value
+                CMP.W   (A1),D0
+                BEQ     ADD_RE_ADDW
+                BRA     ADD_RE_ADDL
+ADD_RE_ADDW
+                JSR     ADDW_OUT
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                BRA     ADD_REGEA_SRC
+                
+ADD_RE_ADDL
+                JSR     ADDL_OUT
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                BRA     ADD_REGEA_SRC
+                
+ADD_REGEA_SRC
+                MOVE.L  #$00000D00,D0      *Mask for Dn in destination
+                AND.L   D6,D0
+                MOVE.L  #9,D1              *Need to shift 9 bits for the Register number
+                LSR.L   D1,D0
+                CLR.L   D1
+                JSR     DR_DIRECT
+                MOVE.L  A3,-(SP)
+                RTS
+
+MULS_DIVS_EA                               *MULS and DIVS use same process for determining EA
+                MOVE.L  (SP)+,A3
+                MOVE.L  #END_LINE,-(SP)
+                MOVE.L  #$00000D00,D0      *Mask for Dn in destination
+                AND.L   D6,D0
+                MOVE.L  #9,D1              *Need to shift 9 bits for the Register number
+                LSR.L   D1,D0
+                CLR.L   D1
+                JSR     DR_DIRECT
+                MOVE.W  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  #$20,D0
+                MOVE.W  D0,-(SP)            *Push comma to stack to split operands
+                MOVE.L  #$00000038,D0       *Move mask for mode bits int0 D0
+                AND.L   D6,D0
+                LSR.L   #3,D0
+                LEA     ADD_MODES,A1    ;Load addressing modes list for comparison
+                CMP.W   (A1)+,D0
+                BEQ     MULS_DIVS_DR
+                ADDA.W  #2,A1
+                CMP.W   (A1)+,D0
+                BEQ     MULS_DIVS_AR_IND
+                CMP.W   (A1)+,D0
+                BEQ     MULS_DIVS_AR_IND_POST
+                CMP.W   (A1),D0
+                BEQ     MULS_DIVS_AR_IND_PRE
+                BRA     MULS_DIVS_AR_ADD_IMM
+                
+MULS_DIVS_DR
+                MOVE.L #$00000007,D0    ;Mask for the last 3 bits
+                AND.L   D6,D0
+                JSR     DR_DIRECT
+                MOVE.L  A3,-(SP)        ;Return address that goes back to opcheck onto the stack
+                RTS                     ;Return to Opcheck
+     
+MULS_DIVS_AR_IND
+                MOVE.L #$00000007,D0    ;Mask for the last 3 bits
+                AND.L   D6,D0
+                JSR     AR_INDIRECT
+                MOVE.L  A3,-(SP)        ;Return address that goes back to opcheck onto the stack
+                RTS                     ;Return to Opcheck
+
+MULS_DIVS_AR_IND_POST
+                MOVE.L  #$00000007,D0        *Mask for last 3 bits which will give us the Address register number
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_POST
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  A3, -(SP)
+                RTS
+
+MULS_DIVS_AR_IND_PRE
+                MOVE.L  #$00000007,D0        *Mask for last 3 bits which will give us the Address register number
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_PRE
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  A3, -(SP)
+                RTS
+
+MULS_DIVS_AR_ADD_IMM
+                 MOVE.L  #$00000007,D0        *Mask for last 3 bits which will let us know if we have Absolute addressing or Immediate  
+                AND.L   D6,D0
+                LEA     AR_ADD_SIZES,A1
+                CMP.W   (A1)+,D0
+                BEQ     MULS_DIVS_ADDW
+                CMP.W   (A1)+,D0
+                BEQ     MULS_DIVS_ADDL
+                BRA     MULS_DIVS_IMM
+MULS_DIVS_ADDW
+                JSR     ADDW_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)            *Push ' $' onto the stack for output
+                MOVE.L  A3,-(SP)
+                RTS
+   
+MULS_DIVS_ADDL
+                JSR     ADDL_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)            *Push ' $' onto the stack for output
+                MOVE.L  A3,-(SP)
+                RTS
+                
+MULS_DIVS_IMM     
+                JSR     IMMW_OUT            *Only immediate size supported is Word, so just use word. 
+                MOVE.L  A3,-(SP)
+                RTS
+ 
+OR_EAREG_EA
+                MOVE.L  (SP)+,A3
+                MOVE.L  #END_LINE,-(SP)
+                MOVE.L  #$00000D00,D0      *Mask for Dn in destination
+                AND.L   D6,D0
+                MOVE.L  #9,D1              *Need to shift 9 bits for the Register number
+                LSR.L   D1,D0
+                CLR.L   D1
+                JSR     DR_DIRECT
+                MOVE.W  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  #$20,D0
+                MOVE.W  D0,-(SP)            *Push comma to stack to split operands
+                MOVE.L  #$00000038,D0       *Move mask for mode bits int D0
+                AND.L   D6,D0
+                LSR.L   #3,D0
+                LEA     ADD_MODES,A1    ;Load addressing modes list for comparison
+                CMP.W   (A1)+,D0
+                BEQ     OR_ER_DR
+                ADDA.L  #2,A1
+                CMP.W   (A1)+,D0
+                BEQ     OR_ER_AR_IND
+                CMP.W   (A1)+,D0
+                BEQ     OR_ER_AR_IND_POST
+                CMP.W   (A1)+,D0
+                BEQ     OR_ER_AR_IND_PRE
+                BRA     OR_ER_ADD_IMM
+OR_ER_DR
+                MOVE.L #$00000007,D0    ;Mask for the last 3 bits
+                AND.L   D6,D0
+                JSR     DR_DIRECT
+                MOVE.L  A3,-(SP)        ;Return address that goes back to opcheck onto the stack
+                RTS                     ;Return to Opcheck
+                
+OR_ER_AR_IND
+                MOVE.L #$00000007,D0    ;Mask for the last 3 bits
+                AND.L   D6,D0
+                JSR     AR_INDIRECT
+                MOVE.L  A3,-(SP)        ;Return address that goes back to opcheck onto the stack
+                RTS                     ;Return to Opcheck
+                
+OR_ER_AR_IND_POST
+                MOVE.L  #$00000007,D0        *Mask for last 3 bits which will give us the Address register number
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_POST
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  A3, -(SP)
+                RTS
+                
+OR_ER_AR_IND_PRE
+                MOVE.L  #$00000007,D0        *Mask for last 3 bits which will give us the Address register number
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_PRE
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  A3, -(SP)
+                RTS
+
+OR_ER_ADD_IMM
+                MOVE.L  #$00000007,D0        *Mask for last 3 bits which will let us know if we have Absolute addressing or Immediate  
+                AND.L   D6,D0
+                LEA     AR_ADD_SIZES,A1
+                CMP.W   (A1)+,D0
+                BEQ     OR_ER_ADDW
+                CMP.W   (A1)+,D0
+                BEQ     OR_ER_ADDL
+                BRA     OR_ER_IMM
+OR_ER_ADDW
+                JSR     ADDW_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)            *Push ' $' onto the stack for output
+                MOVE.L  A3,-(SP)
+                RTS
+   
+OR_ER_ADDL
+                JSR     ADDL_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)            *Push ' $' onto the stack for output
+                MOVE.L  A3,-(SP)
+                RTS
+
+OR_ER_IMM
+                MOVE.L  #$000001C0,D0       *Mask for opmode which will give the size needed for the immediate value
+                AND.L   D6,D0
+                LEA     ADD_SIZES,A1
+                CMP.W   (A1)+,D0
+                BEQ     OR_ER_IMMB
+                CMP.W   (A1),D0
+                BEQ     OR_ER_IMMW
+                BRA     OR_ER_IMML
+OR_ER_IMMB
+                JSR     IMMB_OUT
+                MOVE.L  A3,-(SP)
+                RTS
+                
+OR_ER_IMMW
+                JSR     IMMW_OUT
+                MOVE.L  A3,-(SP)
+                RTS
+
+OR_ER_IMML
+                JSR     IMML_OUT
+                MOVE.L  A3,-(SP)
+                RTS
+EOR_EA
+                MOVE.L  (SP)+,A3
+                MOVE.L  #END_LINE,-(SP)
+                MOVE.L  #$00000038,D0
+                AND.L   D6,D0
+                LSR.L   #3,D0
+                CMP.W   #0,D0
+                BEQ     EOR_DR_DEST
+                BRA     EOR_ENTRY          *Branch to ADD_SUB_OR_REGEA as that process is the same for determining EA in EOR when Destination is not DR direct
+EOR_DR_DEST     MOVE.L  #$00000007,D0
+                AND.L   D6,D0
+                JSR     DR_DIRECT
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  #$20,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  #9,D1
+                MOVE.L  #$00000E00,D0      *Mask for source Data register 
+                AND.L   D6,D0
+                LSR.L   D1,D0
+                JSR     DR_DIRECT
+                MOVE.L  A3,-(SP)
+                RTS
+
+LSD_ASD_EA                                 *Logical shift and Arithmetic shift should both be the same process
+                MOVE.L  (SP)+,A3
+                MOVE.L  #END_LINE,-(SP)
+                MOVE.L  #$00000007,D0      *mask for register number, this subroutine is specific to Dn being the destination
+                AND.L   D6,D0
+                JSR     DR_DIRECT
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  #$20,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  #5,D1
+                MOVE.L  #$00000020,D0      *Mask for the i/r bit to determine if we are dealing with a register or immediate shift count
+                AND.L   D6,D0
+                LSR.L   D1,D0
+                CLR.L   D1
+                CMP.L   #0,D0
+                BEQ     LSD_ASD_IMM
+                MOVE.L  #9,D1              *For data register shift count
+                MOVE.L  #$00000E00,D0
+                AND.L   D6,D0
+                LSR.L   D1,D0
+                CLR.L   D1
+                JSR     DR_DIRECT
+                MOVE.L  A3,-(SP)
+                RTS
+LSD_ASD_IMM                                *For immediate shift count
+                MOVE.L  #0,D2
+                MOVE.L  #9,D1
+                MOVE.L  #$00000E00,D0
+                AND.L   D6,D0
+                LSR.L   D1,D0
+                CLR.L   D1
+                LEA     SUBQ_IMM_VALUES,A1    
+                CMP.W   (A1)+,D0            
+                BEQ     SHIFT_VALUE_8        *If the value is equal to 0, it's actually equal to 8. Dope
+SHIFT_LOOP       CMP.W   #8,D2             *Loop finds the proper immediate value between 1 and 7
+                BEQ     SHIFT_BAD            
+                CMP.W   (A1)+,D0    
+                BEQ     SHIFT_LOOP_DONE
+                ADD.L   #1,D2
+                BRA     SHIFT_LOOP
+SHIFT_VALUE_8
+                MOVE.L  #8,D0
+                JSR     GET_ASCII_CHAR
+                MOVE.W  #$2400,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.W  #$2023,-(SP)
+                BRA     SHIFT_IMM_DONE
+SHIFT_LOOP_DONE
+                JSR     GET_ASCII_CHAR
+                MOVE.W  #$2400,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.W  #$2023,-(SP)
+                BRA     SHIFT_IMM_DONE
+                
+SHIFT_BAD                                    *JUST in case really. Prints out BADV
+                MOVE.W #$4456,-(SP)
+                MOVE.W #$4241,-(SP)
+                BRA     SHIFT_IMM_DONE              
+SHIFT_IMM_DONE
+                MOVE.L  A3,-(SP)
+                RTS
+
+LSD_ASD_MEM_EA
+                MOVE.L  (SP)+,A3
+                MOVE.L  #END_LINE,-(SP)
+                MOVE.L  #$00000038,D0   *Mask to determine addressing mode for memory shift
+                AND.L   D6,D0
+                LSR.L   #3,D0
+                LEA     ADD_MODES,A1
+                ADDA.L  #4,A1
+                CMP.W   (A1)+,D0
+                BEQ     LSD_ASD_AR_IND
+                CMP.W   (A1)+,D0
+                BEQ     LSD_ASD_AR_IND_POST
+                CMP.W   (A1),D0
+                BEQ     LSD_ASD_AR_IND_PRE
+                BRA     LSD_ASD_ADD
+
+LSD_ASD_AR_IND
+                MOVE.L #$00000007,D0    ;Mask for the last 3 bits
+                AND.L   D6,D0
+                JSR     AR_INDIRECT
+                MOVE.L  A3,-(SP)        ;Return address that goes back to opcheck onto the stack
+                RTS                     ;Return to Opcheck
+  
+LSD_ASD_AR_IND_POST
+                MOVE.L  #$00000007,D0    ;Mask for last 3 bits
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_POST
+                CLR.L   D0
+                MOVE.B  #$20,D0
+                LSL.L   #8,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)        ;Have to fill out the word containing '(' so add a space ' ('
+                MOVE.L  A3,-(SP)
+                RTS
+
+LSD_ASD_AR_IND_PRE
+                MOVE.L  #$00000007,D0    ;Mask for last 3 bits
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_PRE
+                CLR.L   D0
+                MOVE.B  #$20,D0
+                LSL.L   #8,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)        ;Have to fill out the word containing '(' so add a space ' ('
+                MOVE.L  A3,-(SP)
+                RTS
+
+LSD_ASD_ADD
+                MOVE.L #$00000007,D0    ;Mask for last bits
+                AND.L   D6,D0
+                LEA     AR_ADD_SIZES,A1
+                CMP.W   (A1),D0
+                BEQ     LSD_ASD_ADDW
+                BRA     LSD_ASD_ADDL        ;Only two options here for address size
+LSD_ASD_ADDW
+                JSR     ADDW_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0       ;Move space into D0, then move $
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)        ;Move the final ' $' of the address string onto the stack
+                MOVE.L  A3,-(SP)
+                RTS
+
+LSD_ASD_ADDL 
+                JSR     ADDL_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0       ;Move space into D0, then move $
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)        ;Move the final ' $' of the address string onto the stack
+                MOVE.L  A3,-(SP)
+                RTS
                 
                 
+   
+                
+                     
 DONE    SIMHALT             
 
 * Put variables and constants here
 HEX_to_ASCII    DC.B    '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
+SUBQ_IMM_VALUES DC.W    0,1,2,3,4,5,6,7
 ADD_MODES       DC.W    0,1,2,3,4
-AB_ADD_SIZES    DC.W    0,1
-MOVE_SIZES      DC.L    $10000000,$30000000,$20000000
+AR_ADD_SIZES    DC.W    0,1
+MOVE_SIZES      DC.W    $1000,$3000,$2000
+ADD_SIZES       DC.W    $0000,$0040,$0080,$0100,$0140,$0180
 
 
        
@@ -1149,6 +1850,7 @@ TEST_SUB
        END    START              
               
               
+
 
 
 
