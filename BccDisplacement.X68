@@ -27,7 +27,7 @@ OFFSET_ADDR                 * Used to determine the displacement of Bcc's and it
     
 
 Neg8Bit
-    NEG.B   D0
+    NEG.B   D0              * The NEG instruction uses 2's compliment 
     SUBA.W  D0, A0
     BRA     DISPLACEMENT_FINISHED
     
