@@ -8,12 +8,13 @@
 END_LINE        EQU     $200D0A00       ;END_LINE and REST_OF Comprise the characters that always need to be at the end of a line.                                     ;and fills out the word for rest_of as this makes managing the stack easier.
 COMMA           EQU     $2C 
                 ORG     $1000
-START:   
 
-TEST_INSTR      MOVE.L  $5000,$60005000
+START:         
+
+TEST_INSTR      MOVEM.L  $4000,D1-D4/D6/A4-A6
                 LEA     TEST_INSTR,A5
                 MOVE.W  (A5)+,D6
-                JSR     MOVE_EA        
+                JSR     MOVEM_EA        
                 
                 MOVE.L SP,A1
                 MOVE.L #14,D0
@@ -1882,8 +1883,254 @@ MOVE_ES_IMML
                 MOVE.L  A3,-(SP)
                 RTS
 
+MOVEM_EA
+                MOVE.L  (SP)+, A3
+                MOVE.L  #END_LINE,-(SP)
+                MOVE.W  (A5)+,D2        *Increment the address to either the absolute address or the next intsruction and save Register mask
+                MOVE.L  #$00000400,D0
+                MOVE.L  #10,D1
+                AND.L   D6,D0 
+                LSR.L   D1,D0           *We need to know if it is regiseter to memory or memory to register 
+                CMP.L   #0,D0
+                BEQ     M_REG_MEM       *Branch to register to memory code
+                CLR.L   D3              *Status of the list: 0 means no range and no value, 1 means value but no range, 2  means range and value  
+                CLR.L   D0              *Holds the last found register
+                LEA     REGISTERS,A4
+ADDR_LOOP       MOVE.W  #$8000,D4
+                CMP.W   #8,(A4)
+                BEQ     ADDR_LOOP_DONE
+                AND.W   D2,D4
+                CMP.W   #$8000,D4
+                BEQ     ADDR_FOUND_BIT
+                CMP.W   #0,D3
+                BEQ     ADDR_NRA_NVA_NF
+                CMP.W   #1,D3
+                BEQ     ADDR_NRA_VA_NF
+                CMP.W   #2,D3
+                BEQ      ADDR_RA_VA_NF
+ADDR_NRA_NVA_NF
+                ADDA.W  #2,A4                       *Nothing to store, no value found, no range exists, and no previous value
+                LSL.L   #1,D2
+                BRA     ADDR_LOOP
+               
+ADDR_NRA_VA_NF
+                MOVE.W  D2,D4
+                JSR     AR_DIRECT
+                MOVE.W  #$202F,-(SP)
+                MOVE.W  D4,D2                   *In case store the previous address register and a / onto the stack. (we had /An) No range, previous value, nothing found
+                LSL.W   #1,D2 
+                ADDA.W  #2,A4
+                CLR.L   D3                       
+                BRA     ADDR_LOOP
+ADDR_RA_VA_NF
+                MOVE.W  #$202D,-(SP)
+                MOVE.W  D2,D4
+                JSR     AR_DIRECT
+                MOVE.W  D4,D2                   *In this case we had a range, and we have a previous value and we need to output /An- to begin our range
+                MOVE.W  #$202F,-(SP)
+                LSL.W   #1,D2
+                ADDA.W  #2,A4
+                CLR.L   D3
+                BRA     ADDR_LOOP
+ADDR_FOUND_BIT       
+                CMP.W   #0,D3
+                BEQ     ADDR_NRA_NVA_F
+                CMP.W   #1,D3
+                BEQ     ADDR_NRA_VA_F 
+                CMP.W   #2,D3
+                BEQ     ADDR_R_V_F
+ADDR_NRA_NVA_F                                      *No previous value, but we have a new register found set it to our previous value found and set the value found no range flag
+                MOVE.W  (A4)+,D0
+                LSL.W   #1,D2
+                MOVE.W  #1,D3
+                BRA     ADDR_LOOP
+ADDR_NRA_VA_F                    
+                MOVE.W  D2,D4                   *No range but we have a previous value. Output the previous value as the start of the range and store the current value in D0
+                JSR     AR_DIRECT
+                MOVE.W  D4,D2  
+                MOVE.W  (A4)+,D0
+                LSL.W   #1,D2
+                MOVE.W  #2,D3
+                BRA     ADDR_LOOP
+ADDR_R_V_F                                          *We have a range continued, store the current value as previous  
+                MOVE.W  (A4)+,D0
+                LSL.W   #1,D2        
+                BRA     ADDR_LOOP
+
+ADDR_LOOP_DONE       
+                CMP.W   #1,D3
+                BEQ     ADDR_ONE_MORE_VALUE
+                CMP.W   #2,D3
+                BEQ     ADDR_ONE_MORE_RANGE
+                BRA     ADDR_DONE
+ADDR_ONE_MORE_VALUE
+                MOVE.W  D2,D4
+                JSR     AR_DIRECT
+                MOVE.W  D4,D2
+                MOVE.W  #$202D,-(SP)
+                CLR.L   D1
+                CLR.L   D3
+                CLR.L   D0
+                BRA     ADDR_DONE
+ADDR_ONE_MORE_RANGE
+                MOVE.W  #$2F20,-(SP)
+                MOVE.W  D2,D4
+                JSR     AR_DIRECT
+                MOVE.W  D4,2                   *In this case we had a range, and we have a previous value and we need to output -An/ to begin our range
+                MOVE.W  #$202D,-(SP)
+                CLR.L   D1
+                CLR.L   D3
+                CLR.L   D0
+ADDR_DONE
+                CLR.L   D3                      *Status of the list: 0 means no range and no value, 1 means value but no range, 2  means range and value  
+                CLR.L   D0                       *Holds the last found register
+                LEA     REGISTERS,A4
+DATA_LOOP       MOVE.W  #$8000,D4
+                CMP.W   #8,(A4)
+                BEQ     DATA_LOOP_DONE
+                AND.W   D2,D4
+                CMP.W   #$8000,D4
+                BEQ     DATA_FOUND_BIT
+                CMP.W   #0,D3
+                BEQ     DATA_NRA_NVA_NO_FOUND
+                CMP.W   #1,D3
+                BEQ     DATA_NRA_VA_NO_FOUND
+                CMP.W   #2,D3
+                BEQ     DATA_RA_VA_NO_F
+DATA_NRA_NVA_NO_FOUND
+                ADDA.W  #2,A4  
+                LSL.L   #1,D2                       *Nothing to store
+                BRA     DATA_LOOP
                 
-                    
+DATA_NRA_VA_NO_FOUND
+                MOVE.W  D2,D4
+                JSR     DR_DIRECT
+                MOVE.W  D4,D2
+                MOVE.W  #$202F,-(SP)                   *In case store the previous address register and a / onto the stack. (we had /An)
+                LSL.W   #1,D2 
+                ADDA.W  #2,A4
+                CLR.L   D3                       
+                BRA     DATA_LOOP
+                
+DATA_RA_VA_NO_F
+                MOVE.W  #$2D20,-(SP)
+                MOVE.W  D2,D4
+                JSR     DR_DIRECT
+                MOVE.W  D4,D2                   *In this case we had a range, and we have a previous value and we need to output -An/ to begin our range
+                MOVE.W  #$202F,-(SP)
+                LSL.W   #1,D2
+                ADDA.W  #2,A4
+                CLR.L   D3
+                BRA     DATA_LOOP
+DATA_FOUND_BIT       
+                CMP.W   #0,D3
+                BEQ     DATA_NORA_NVA_F
+                CMP.W   #1,D3
+                BEQ     DATA_NRA_VA_F
+                CMP.W   #2,D3
+                BEQ     DATA_RA_VA_F
+DATA_NORA_NVA_F                                     *No previous value, but we have a new register found set it to our previous value found and set the value found no range flag
+                MOVE.W  (A4)+,D0
+                LSL.W   #1,D2
+                MOVE.W  #1,D3
+                BRA     DATA_LOOP
+DATA_NRA_VA_F                                       *No range but we have a previous value. Output the previous value as the start of the range and store the current value in D0
+                MOVE.W  D2,D4
+                JSR     DR_DIRECT
+                MOVE.W  D4,D2  
+                MOVE.W  (A4)+,D0
+                LSL.W   #1,D2
+                MOVE.W  #2,D3
+                BRA     DATA_LOOP
+DATA_RA_VA_F                                         *We have a range continued, store the current value as previous  
+                MOVE.W  (A4)+,D0
+                LSL.W   #1,D2        
+                BRA     DATA_LOOP
+
+DATA_LOOP_DONE       
+                CMP.W   #1,D3
+                BEQ     DATA_ONE_MORE_VALUE
+                CMP.W   #2,D3
+                BEQ     DATA_ONE_MORE_RANGE
+                BRA     DATA_DONE
+DATA_ONE_MORE_VALUE
+                MOVE.W  D2,D4
+                JSR     DR_DIRECT
+                MOVE.W  D4,D2
+                MOVE.W  #$202D,-(SP)
+                CLR.L   D1
+                CLR.L   D3
+                CLR.L   D0
+                BRA     DATA_DONE
+DATA_ONE_MORE_RANGE
+                MOVE.W  D2,D4
+                MOVE.W  #$202D,-(SP)
+                JSR     DR_DIRECT
+                MOVE.W  D4,D2                       *In this case we had a range, and we have a previous value and we need to output /An- to begin our range
+                MOVE.W  #$2F20,-(SP)
+                CLR.L   D1
+                CLR.L   D3
+                CLR.L   D0
+DATA_DONE                                           *We now need to determine the EA
+                MOVE.B  #COMMA,D0
+                LSL.L   #8,D0
+                MOVE.B  #$20,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  #$00000038,D0               *Mask for mode bits     
+                AND.L   D6,D0
+                LSR.L   #3,D0
+                LEA     ADD_MODES,A1
+                ADDA.L  #4,A1
+                CMP.W   (A1)+,D0
+                BEQ     MOVEM_MR_AR_IND
+                CMP.W   (A1),D0
+                BEQ     MOVEM_MR_AR_IND
+                BRA     MOVEM_MR_ADD
+MOVEM_MR_AR_IND
+                MOVE.L #$00000007,D0                ;Mask for the last 3 bits
+                AND.L   D6,D0
+                JSR     AR_INDIRECT
+                MOVE.L  A3,-(SP)                    ;Return address that goes back to opcheck onto the stack
+                RTS                                 ;Return to Opcheck         
+MOVEM_MR_POST
+                MOVE.L  #$00000007,D0               *Mask for last 3 bits which will give us the Address register number
+                AND.L   D6,D0
+                JSR     AR_INDIRECT_PRE
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)
+                MOVE.L  A3, -(SP)
+                RTS
+                
+MOVEM_MR_ADD
+                MOVE.L  #$00000007,D0        *Mask for last 3 bits which will let us know if we have Absolute addressing or Immediate  
+                AND.L   D6,D0
+                LEA     AR_ADD_SIZES,A1
+                CMP.W   (A1)+,D0
+                BEQ     MOVEM_MR_ADDW
+                BRA     MOVEM_MR_ADDL
+MOVEM_MR_ADDW
+                JSR     ADDW_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)            *Push ' $' onto the stack for output
+                MOVE.L  A3,-(SP)
+                RTS
+   
+MOVEM_MR_ADDL
+                JSR     ADDL_OUT
+                CLR.L   D0
+                MOVE.W  #$2000,D0
+                MOVE.B  D1,D0
+                MOVE.W  D0,-(SP)            *Push ' $' onto the stack for output
+                MOVE.L  A3,-(SP)
+                RTS
+
+M_REG_MEM
+                
+                
+
 DONE    SIMHALT             
 
 * Put variables and constants here
@@ -1893,6 +2140,8 @@ ADD_MODES       DC.W    0,1,2,3,4
 AR_ADD_SIZES    DC.W    0,1
 MOVE_SIZES      DC.W    $1000,$3000,$2000
 ADD_SIZES       DC.W    $0000,$0040,$0080,$0100,$0140,$0180
+REGISTERS       DC.W    7,6,5,4,3,2,1,0,8       
+
 
 
        
@@ -2159,6 +2408,7 @@ TEST_SUB
        END    START              
               
               
+
 
 
 
